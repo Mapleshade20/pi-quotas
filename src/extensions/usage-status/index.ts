@@ -11,26 +11,45 @@ import {
 } from "../../config.js";
 import {
   fetchProviderQuotas,
-  formatResetTime,
   isSupportedProvider,
 } from "../../lib/quotas.js";
 import {
   assessWindow,
+  formatTimeRemaining,
 } from "../../utils/quotas-severity.js";
+import type { QuotaWindow } from "../../types/quotas.js";
 import { formatWindowStatus, type WindowStatus } from "./format-status.js";
 
 const EXTENSION_ID = "pi-quotas-usage";
 const REFRESH_INTERVAL_MS = 60_000;
 
-function formatStatus(ctx: ExtensionContext, windows: WindowStatus[]): string {
+function formatFooterResetTime(resetsAt: string): string {
+  const remaining = formatTimeRemaining(new Date(resetsAt));
+  return remaining === "now" ? "now" : `in ${remaining}`;
+}
+
+export function formatStatus(ctx: Pick<ExtensionContext, "ui">, windows: WindowStatus[]): string {
   const theme = ctx.ui.theme;
   return windows
     .map((w) => {
       const core = formatWindowStatus(theme, w);
-      const reset = w.resetsAt ? theme.fg("dim", ` (↺${formatResetTime(w.resetsAt)})`) : "";
+      const reset = w.resetsAt ? theme.fg("dim", ` (↺${formatFooterResetTime(w.resetsAt)})`) : "";
       return `${core}${reset}`;
     })
     .join(" ");
+}
+
+export function toWindowStatus(window: QuotaWindow): WindowStatus {
+  return {
+    label: window.label,
+    usedPercent: window.usedPercent,
+    severity: assessWindow(window).severity,
+    resetsAt: window.resetsAt.getTime() > 0 ? window.resetsAt.toISOString() : null,
+    limited: window.limited ?? false,
+    isCurrency: window.isCurrency,
+    usedValue: window.usedValue,
+    limitValue: window.limitValue,
+  };
 }
 
 function createStatusRefresher() {
@@ -54,16 +73,7 @@ function createStatusRefresher() {
         ctx.ui.setStatus(EXTENSION_ID, ctx.ui.theme.fg("warning", "usage unavailable"));
         return;
       }
-      const windows: WindowStatus[] = result.data.windows.map((window) => ({
-        label: window.label,
-        usedPercent: window.usedPercent,
-        severity: assessWindow(window).severity,
-        resetsAt: window.resetsAt.toISOString(),
-        limited: window.limited ?? false,
-        isCurrency: window.isCurrency,
-        usedValue: window.usedValue,
-        limitValue: window.limitValue,
-      }));
+      const windows: WindowStatus[] = result.data.windows.map(toWindowStatus);
       lastStatus = windows;
       ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, windows));
     } catch {
