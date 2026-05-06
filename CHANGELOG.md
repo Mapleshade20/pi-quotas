@@ -2,12 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.2.1] - 2026-05-06
 
 ### Added
 - Synthetic quota monitoring support, including the `/synthetic:quotas` command.
 - Synthetic quota parsing for subscription requests, hourly search limits, free tool calls, weekly tokens, and rolling five-hour limits.
 - Synthetic API quota fetching via the `SYNTHETIC_API_KEY` environment variable.
+
+### Fixed
+- Footer reset times now use minute precision across supported providers, matching quota warning output.
+- Footer status no longer shows misleading reset tags for non-reset windows such as Codex spend cap and credit balances.
+- Elapsed reset times render as `now` instead of `in now`.
 
 ## [0.2.0] - 2026-04-22
 
